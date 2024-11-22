@@ -5,6 +5,7 @@ import urllib.request
 import urllib.parse
 import certifi
 import ssl
+from io import BytesIO
 
 from ucimlrepo.dotdict import dotdict
 
@@ -96,7 +97,14 @@ def fetch_ucirepo(
     try:
         df = pd.read_csv(data_url)
     except (urllib.error.URLError, urllib.error.HTTPError):
-        raise DatasetNotFoundError('Error reading data csv file for "{}" dataset (id={}).'.format(name, id))
+        try:
+            response_data=urllib.request.urlopen(data_url, context=ssl.create_default_context(cafile=certifi.where()))
+            data_byte = response_data.read()
+            df = pd.read_csv(BytesIO(data_byte))
+        except:
+            raise DatasetNotFoundError('Error reading data csv file for "{}" dataset (id={}).'.format(name, id))
+        else:
+            pass
         
     if df.empty:
         raise DatasetNotFoundError('Error reading data csv file for "{}" dataset (id={}).'.format(name, id))
