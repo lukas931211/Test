@@ -5,7 +5,9 @@ import urllib.request
 import urllib.parse
 import certifi
 import ssl
+import os
 
+from platformdirs import user_cache_dir
 from ucimlrepo.dotdict import dotdict
 
 
@@ -14,6 +16,7 @@ from ucimlrepo.dotdict import dotdict
 # API endpoints
 API_BASE_URL = 'https://archive.ics.uci.edu/api/dataset'
 API_LIST_URL = 'https://archive.ics.uci.edu/api/datasets/list'
+CACHE_DIR = user_cache_dir("ucimlrepo")
 
 # base location of data csv files
 DATASET_FILE_BASE_URL = 'https://archive.ics.uci.edu/static/public'
@@ -90,11 +93,17 @@ def fetch_ucirepo(
     if not data_url:
         raise DatasetNotFoundError('"{}" dataset (id={}) exists in the repository, but is not available for import. Please select a dataset from this list: https://archive.ics.uci.edu/datasets?skip=0&take=10&sort=desc&orderBy=NumHits&search=&Python=true'.format(name, id))
     
+    dataset_file_path = os.path.join(CACHE_DIR, str(id))
 
     # parse into dataframe using pandas
     df = None
     try:
-        df = pd.read_csv(data_url)
+        if os.path.exists(dataset_file_path):
+            df = pd.read_csv(dataset_file_path)
+        else:
+            df = pd.read_csv(data_url)
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            df.to_csv(dataset_file_path, index=False)
     except (urllib.error.URLError, urllib.error.HTTPError):
         raise DatasetNotFoundError('Error reading data csv file for "{}" dataset (id={}).'.format(name, id))
         
